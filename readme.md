@@ -27,10 +27,10 @@ Batch generate thumbnails for each of your models based on the set file. Generat
 _Set the [end index] to -1 to generate all missing thumbnails for a set, or check the "Overwrite" setting to re-generate all._
 
 ## Customizable Blocklist
-Some models are not helpful to be on sets like this. I'm looking at you v1-5-pruned! Just add it to your blocklist and it won't show up in the thumbnail gallery, and it will be ignored during thumbnail generation.
+Some models are not that useful for this. I'm looking at you v1-5-pruned! Just add it to your blocklist and it won't show up in the thumbnail gallery, and it will be ignored during thumbnail generation.
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/13f5708a-d59f-4191-bd76-3cd61807bdef)
-_You can use this to disable thumbnail generation for SDXL models if you want to generate them with other settings._
+_You can use this to disable thumbnail generation for SDXL models if you want to generate them with other settings. You can manually swap between different blocklist files for now._
 
 ## Supports Civitai Helper Thumbnails
 If you are already using the Civitai Helper-extension (https://github.com/zixaphir/Stable-Diffusion-Webui-Civitai-Helper) (forked from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper), to download your thumbnails and model info, their thumbnails are saved as modelname.preview.png. This is added to the set-list as one of the types, so you can easily switch to the original model thumbnails to view them, even if you are customizing your own sets.
