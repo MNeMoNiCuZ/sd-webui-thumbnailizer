@@ -1,0 +1,4 @@
+.gr-gallery-item img {
+    height: 500px;
+    object-fit: contain;
+}

@@ -1,0 +1,124 @@
+{
+    "sets": [
+        {
+            "displayName": "Default",
+            "suffix": "",
+            "prompt": "Closeup of brown hair woman knightin shiny metal armor, detailed skin, wearing jewellery, masterpiece, in front of a castle, extremely detailed, sunny day, best quality",
+            "negativePrompt": "ugly, bad art, NSFW",
+            "sampler": "Euler a",
+            "steps": 25,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 5.5,
+            "seed": 3447407284
+        },
+        {
+            "displayName": "Preview",
+            "suffix": "preview",
+            "prompt": "closeup of a handsome bearded man, detailed skin, in a bar, colorful lights",
+            "negativePrompt": "ugly, deformed",
+            "sampler": "DPM++ 2M Karras",
+            "steps": 25,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 6,
+            "seed": -1
+        },
+        {
+            "displayName": "Environment",
+            "suffix": "environment",
+            "prompt": "ConceptArt, no humans, scenery, water, sky, day, tree, cloud, waterfall, outdoors, building, nature, river, blue sky",
+            "negativePrompt": "ugly, bad art",
+            "sampler": "DPM++ 2M SDE Karras",
+            "steps": 25,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 4.5,
+            "seed": 3522347492
+        },
+        {
+            "displayName": "Fighter",
+            "suffix": "fighter",
+            "prompt": "closeup, medium shot, warrior, fighter, hero, in a fighting stance, ready for action, swirling magic, dynamic angle, (glow:1.2), lights, sparks, temple background, bokeh, magical energy, perfect eyes",
+            "negativePrompt": "ugly, bad art",
+            "sampler": "Euler a",
+            "steps": 25,
+            "width": 512,
+            "height": 768,
+            "cfgScale": 4.5,
+            "seed": 1184119667
+        },
+        {
+            "displayName": "Cat Playing with Ball",
+            "suffix": "cat",
+            "prompt": "closeup of a grey cat, playing with a large ball",
+            "negativePrompt": "ugly, dog",
+            "sampler": "Euler a",
+            "steps": 25,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 6,
+            "seed": 3139575192
+        },
+        {
+            "displayName": "Sports Car",
+            "suffix": "sportscar",
+            "prompt": "front side view, professional photography, sports car, (concept car:0.7), luxury, countryside, sunny day, absurdres, 8k, intricate details, very detailed, masterpiece, best quality, shiny, reflective",
+            "negativePrompt": "ugly, dented, deformed, common",
+            "sampler": "DPM++ 2M SDE Karras",
+            "steps": 35,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 7,
+            "seed": 1953047073
+        },
+        {
+            "displayName": "Food",
+            "suffix": "food",
+            "prompt": "closeup of a food photography, delicious dinner, stylized, 4k, cuisine, on a plate, professional, dark background, blurry, bokeh, depth of field, masterpiece",
+            "negativePrompt": "ugly, disgusting",
+            "sampler": "DPM++ 2M Karras",
+            "steps": 30,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 8,
+            "seed": 3614173333
+        },
+        {
+            "displayName": "Product Photography",
+            "suffix": "productphoto",
+            "prompt": "(perfume_bottle), fragrance, wet, water splash, backlight, rimlight, edge light, studio photography, realistic, Product Photography, Gradient background, film grain, best quality, masterpiece, perfect lighting",
+            "negativePrompt": "",
+            "sampler": "Euler a",
+            "steps": 30,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 6,
+            "seed": 1229670707
+        },
+        {
+            "displayName": "Hi-Tech Gadget",
+            "suffix": "hitech",
+            "prompt": "closeup, metallic, plastic, chrome, hi-tech, sci-fi, (cube:1.4), gadget, greebles, artifact, (glowing:0.7), (neon:0.5), lights, circuits, mysterious box, wires and cables, magical glow",
+            "negativePrompt": "ugly, bad art",
+            "sampler": "DPM++ 2M Karras",
+            "steps": 30,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 4.5,
+            "seed": 3921144070
+        },
+        {
+            "displayName": "Abstract Geometry",
+            "suffix": "abstract",
+            "prompt": "abstract, black hole, energy, transmutation, light rays, mesh, lines, geometry, harmonic resonance Quantum flux synthesis Transmuting reflections Mystical gateways convergence 4D, glow, dark background, bokeh, DOF, lensflare, sparks, puffs, (smoke:0.2)",
+            "negativePrompt": "ugly, bad art",
+            "sampler": "Euler a",
+            "steps": 30,
+            "width": 420,
+            "height": 640,
+            "cfgScale": 4.5,
+            "seed": 3606261718
+        }
+    ]
+}
