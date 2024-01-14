@@ -1,5 +1,6 @@
 # Standard library imports
 import os
+import shutil
 import json
 import glob
 import threading
@@ -18,7 +19,14 @@ from modules import script_callbacks, shared, sd_models, processing, images
 # Pre-initialization
 ckpt_dir = shared.cmd_opts.ckpt_dir or sd_models.model_path #string
 script_dir = os.path.dirname(__file__) #string
-sets_file_path = os.path.join(script_dir, 'sets.json') #string
+user_sets_file_path = os.path.join(script_dir, 'sets_user.json') #string
+# Check if sets_user.json exists, if it doesn't create it.
+if not os.path.exists(user_sets_file_path):
+    shutil.copy(os.path.join(script_dir, 'sets_template.json'), user_sets_file_path)
+sets_file_path = os.path.join(script_dir, 'sets_user.json') #string
+if not os.path.exists(sets_file_path):
+    print("Thumbnailizer Error: Unable to locate or create the sets_user.json file.")
+
 model_blocklist_file_path = None #string
 current_set_name = "Default" #string
 current_suffix = "" #string
@@ -29,30 +37,29 @@ all_model_paths = [] #list of strings
 relevant_model_names = [] #list of strings
 relevant_model_paths = [] #list of strings
 gallery = None # Instance of gr.Gallery
+gallery_height = 1000 #int
+thumbnail_columns = 6 #int
+gallery_fit = "contain" #str
 
 # Load settings.ini
 def load_settings():
+    global gallery_height, thumbnail_columns, gallery_fit, save_in_output_folder
     config = configparser.ConfigParser()
     config.optionxform = str  # Keeps the case of options as is
     settings_path = os.path.join(script_dir, 'settings.ini')
     config.read(settings_path)
-    # Creating a simple dictionary for easy access
-    settings = {key: value for key, value in config['Settings'].items()}
-    return settings
-settings = load_settings()
-
-gallery_height = int(settings['gallery_height']) #int
-thumbnail_columns = int(settings['thumbnail_columns']) #int
-gallery_fit = str(settings['gallery_fit']) #str
-
-#Todo: Move init functions outside of init, to avoid re-defining them each time I reinit.
+    # Update global variables with settings from file, if available
+    gallery_height = int(config.get('Settings', 'gallery_height', fallback=gallery_height))
+    thumbnail_columns = int(config.get('Settings', 'thumbnail_columns', fallback=thumbnail_columns))
+    gallery_fit = str(config.get('Settings', 'gallery_fit', fallback=gallery_fit))
 
 # Initialization function
 def initialize(set_name="Default", model_blocklist_filename="model_blocklist"):
     global current_set_name, model_blocklist_file_path, blocklist, set_data
     current_set_name = set_name
     model_blocklist_file_path = os.path.join(script_dir, f'{model_blocklist_filename}.json')
-    
+    load_settings()
+
     # Load the blocklist
     def load_model_blocklist():
         try:
@@ -221,6 +228,7 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         # set the image filename
         p.override_settings['samples_filename_pattern'] = output_filename
 
+
         # Perform necessary pre-processing or initialization
         p.init(["Empty Prompt"],[-1],[-1])
 
@@ -278,14 +286,15 @@ def on_ui_tabs():
 
 ######################## SET SETTINGS SECTION ########################
     with gr.Blocks(analytics_enabled=False) as ui_component:
-        # Apply CSS style - Doesn't seem to work yet
+        # Apply CSS style
         gr.Markdown(f"<link rel='stylesheet' type='text/css' href='{script_dir}/style.css'>")
         with gr.Box(elem_classes="ch_box"):
             # Set List Dropdown
             with gr.Row():
                 set_dropdown = gr.Dropdown(choices=set_choices, label="Set List", value="Default")
+            # Display the path to edit the sets
             with gr.Row():
-                gr.Markdown("To edit the sets, open this JSON with a text editor: `{}`".format(sets_file_path))
+                gr.Markdown("To edit the sets, open this JSON with a text editor: `{}`".format(user_sets_file_path))
 
 ######################## GENERATE SECTION ########################
         with gr.Box(elem_classes="ch_box"):
