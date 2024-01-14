@@ -13,7 +13,7 @@ import gradio as gr
 from PIL import Image
 
 # Automatic1111 specific imports
-from modules import script_callbacks, shared, sd_models, processing
+from modules import script_callbacks, shared, sd_models, processing, images
 
 # Pre-initialization
 ckpt_dir = shared.cmd_opts.ckpt_dir or sd_models.model_path #string
@@ -189,8 +189,6 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         # Set up processing parameters
         p = processing.StableDiffusionProcessingTxt2Img(
             sd_model=shared.sd_model,
-            outpath_samples="outputs/txt2img-images",
-            outpath_grids="outputs/txt2img-grids",
             prompt=generation_set_data.get("prompt", "Default Prompt"),
             negative_prompt=generation_set_data.get("negativePrompt", ""),
             steps=int(generation_set_data.get("steps", 25)),
@@ -201,6 +199,27 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
             seed=int(generation_set_data.get("seed", -1)),
             override_settings={"sd_model_checkpoint": model_path}
         )
+
+        # Find the full path of the model
+        model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem),
+                               None)
+        if model_full_path is None:
+            raise FileNotFoundError(f"Model file for {model_name} not found or is blocklisted.")
+
+        # Use the model's directory to save the thumbnail
+        model_directory = Path(ckpt_dir) / Path(model_full_path).parent
+        suffix_str = f".{suffix}" if suffix and not suffix.startswith(".") else suffix
+        output_filename = f"{Path(model_name).stem}{suffix_str}"
+        output_path = model_directory / output_filename
+
+        # disable saving of grid
+        p.do_not_save_grid = True
+        # disable saveing image to subdirectories
+        p.override_settings['save_to_dirs'] = False
+        # set image output directory
+        p.outpath_samples = str(model_directory)
+        # set the image filename
+        p.override_settings['samples_filename_pattern'] = output_filename
 
         # Perform necessary pre-processing or initialization
         p.init(["Empty Prompt"],[-1],[-1])
@@ -220,28 +239,7 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         if not processed or not processed.images:
             raise ValueError("No images were generated.")
 
-        # Extract the first image
-        image = processed.images[0]
-
-        # Ensure the image is a PIL Image
-        if not isinstance(image, Image.Image):
-            raise TypeError("The generated image is not a PIL Image.")
-
-        # Find the full path of the model
-        model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem), None)
-        if model_full_path is None:
-            raise FileNotFoundError(f"Model file for {model_name} not found or is blocklisted.")
-        
-        # Use the model's directory to save the thumbnail
-        model_directory = Path(ckpt_dir) / Path(model_full_path).parent
-        suffix_str = f".{suffix}" if suffix and not suffix.startswith(".") else suffix
-        output_filename = f"{Path(model_name).stem}{suffix_str}.png"
-        output_path = model_directory / output_filename
-        # Create the output directory if it doesn't exist
-        model_directory.mkdir(parents=True, exist_ok=True)
-
-        image.save(output_path)
-        print(f"\n\nThumbnail generated and saved as {output_path}")
+        print(f"\n\nThumbnail generated and saved as {output_path}.{shared.opts.samples_save}")
 
     except Exception as e:
         print(f"Error in generating thumbnail for {model_name}: {e}")
