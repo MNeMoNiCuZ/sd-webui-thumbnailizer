@@ -17,7 +17,7 @@ Switch between different sets of thumbnails for your checkpoints. Compare how al
 ## Customizable Sets
 Easily edit the set list in a .JSON-file format to customize the Set dropdown menu.
 
-![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/251bb241-20b2-4ed3-8476-e77fc480061f)
+![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/58d3c44c-bef0-425a-80fb-860774070559)
 
 
 ## Thumbnail Set Generation
@@ -39,11 +39,14 @@ If you are already using the [Civitai Helper-extension](https://github.com/zixap
 
 
 # Installation
-You can manually install the extension by downloading this space and placing it in your /stable-diffusion-webui/extensions-folder. To verify the folder structure afterwards, you should have a path like this: `\stable-diffusion-webui\extensions\sd-webui-thumbnailizer\scripts\`
+You can use the official extension-list and just search for "thumbnailizer":
+![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/7266414e-199a-4276-bea4-880a6ed29ac1)
 
 Alternatively you can go to the Extensions-tab in A1111 and select the "Install from URL" sub-tab, and paste the URL to this extension there `https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer`. Do not forget to restart your A1111 after.
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/d7c188ef-40c7-415e-a984-191cf52f0c51)
+
+And lastly, you can manually install the extension by downloading this space and placing it in your /stable-diffusion-webui/extensions-folder. To verify the folder structure afterwards, you should have a path like this: `\stable-diffusion-webui\extensions\sd-webui-thumbnailizer\scripts\`
 
 # Known Issues
 >IndexError: list index out of range
