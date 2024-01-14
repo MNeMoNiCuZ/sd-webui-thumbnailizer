@@ -45,9 +45,20 @@ Alternatively you can go to the Extensions-tab in A1111 and select the "Install 
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/d7c188ef-40c7-415e-a984-191cf52f0c51)
 
+# Known Issues
+>IndexError: list index out of range
+
+The script failed to count the number of images correctly. Make sure that your Start Index and Stop Index matches the available checkpoints.
+
+>AttributeError: 'NoneType' object has no attribute 'get'
+
+Likely an initialization issue. Try force-refreshing your A1111, or restarting the A1111 server completely. Let it finish loading everything before using Thumbnailizer. It's sensitive.
+
 
 # Changelog
 v0.29 - Initial release
+v0.30 - Include metadata in generated thumbnails
+v0.31 - Added logic to generate a sets_user.json
 
 # Todo / Wishlist
 * Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
