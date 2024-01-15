@@ -60,7 +60,9 @@ Likely an initialization issue. Try force-refreshing your A1111, or restarting t
 
 # Changelog
 v0.29 - Initial release
+
 v0.30 - Include metadata in generated thumbnails
+
 v0.31 - Added logic to generate a sets_user.json
 
 # Todo / Wishlist
