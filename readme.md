@@ -65,6 +65,8 @@ v0.30 - Include metadata in generated thumbnails
 
 v0.31 - Added logic to generate a sets_user.json
 
+v0.32 - Added 
+
 # Todo / Wishlist
 * Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
 * Refresh thumbnails when a generation is done
