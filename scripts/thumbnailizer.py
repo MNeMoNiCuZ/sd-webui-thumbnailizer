@@ -20,14 +20,21 @@ from modules import script_callbacks, shared, sd_models, processing, images
 ckpt_dir = shared.cmd_opts.ckpt_dir or sd_models.model_path #string
 script_dir = os.path.dirname(__file__) #string
 user_sets_file_path = os.path.join(script_dir, 'sets_user.json') #string
+user_blocklist_file_path = os.path.join(script_dir, 'blocklist_user.json') #string
 # Check if sets_user.json exists, if it doesn't create it.
 if not os.path.exists(user_sets_file_path):
     shutil.copy(os.path.join(script_dir, 'sets_template.json'), user_sets_file_path)
 sets_file_path = os.path.join(script_dir, 'sets_user.json') #string
+# Check if blocklist_user.json exists, if it doesn't create it.
+if not os.path.exists(user_blocklist_file_path):
+    shutil.copy(os.path.join(script_dir, 'blocklist_template.json'), user_blocklist_file_path)
+model_blocklist_file_path = os.path.join(script_dir, 'blocklist_user.json') #string
 if not os.path.exists(sets_file_path):
     print("Thumbnailizer Error: Unable to locate or create the sets_user.json file.")
+if not os.path.exists(model_blocklist_file_path):
+    print("Thumbnailizer Error: Unable to locate or create the blocklist_user.json file.")
 
-model_blocklist_file_path = None #string
+
 current_set_name = "Default" #string
 current_suffix = "" #string
 blocklist = None #string
@@ -43,7 +50,7 @@ gallery_fit = "contain" #str
 
 # Load settings.ini
 def load_settings():
-    global gallery_height, thumbnail_columns, gallery_fit, save_in_output_folder
+    global gallery_height, thumbnail_columns, gallery_fit
     config = configparser.ConfigParser()
     config.optionxform = str  # Keeps the case of options as is
     settings_path = os.path.join(script_dir, 'settings.ini')
@@ -54,7 +61,7 @@ def load_settings():
     gallery_fit = str(config.get('Settings', 'gallery_fit', fallback=gallery_fit))
 
 # Initialization function
-def initialize(set_name="Default", model_blocklist_filename="model_blocklist"):
+def initialize(set_name="Default", model_blocklist_filename="blocklist_user"):
     global current_set_name, model_blocklist_file_path, blocklist, set_data
     current_set_name = set_name
     model_blocklist_file_path = os.path.join(script_dir, f'{model_blocklist_filename}.json')
@@ -62,6 +69,7 @@ def initialize(set_name="Default", model_blocklist_filename="model_blocklist"):
 
     # Load the blocklist
     def load_model_blocklist():
+        global blocklist, set_data
         try:
             with open(model_blocklist_file_path, 'r') as f:
                 return json.load(f)
@@ -140,7 +148,7 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
     filtered_model_paths = []
     generation_set_data = set_data
     print(f"--------------------------------------------------------\nThumbnailizer generation initializing")
-    print(f"Filtering models using model_blocklist.json\n")
+    print(f"Filtering models using blocklist_user.json\n")
 
     for model_name in relevant_model_names:
         model_file_path = next((path for path in relevant_model_paths if Path(path).name == model_name), None)
@@ -168,6 +176,9 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
     # Calculate the total number of models to be processed
     total_to_process = (end_index - start_index) + 1
 
+    # Cache the set name we are generating
+    current_processing_set_name = current_set_name
+
     #print("Adjusted Start Index:", start_index, "Adjusted End Index:", end_index)
     print(f"Generating {total_to_process} thumbnails")
 
@@ -177,14 +188,13 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
         model_name = filtered_model_names[i]
         full_model_path = os.path.join(ckpt_dir, filtered_model_paths[i])  # Construct the full path
         try:
-            print(f"Generating '{current_set_name}' thumbnail for model: {model_name}\n")
+            print(f"Generating '{current_processing_set_name}' thumbnail for model: {model_name}\n")
             generate_thumbnail_for_model(generation_set_data, model_name, suffix, filtered_model_paths[i], full_model_path)
             processed_count += 1
             print(f"Processed {processed_count}/{total_to_process} thumbnails")
         except Exception as e:
             print(f"Error generating thumbnail for {model_name}: {e}")
     print (f"\nThumbnailizer - Finished processing {processed_count} thumbnails")
-    initialize(current_set_name)
     return f"Finished processing {processed_count} thumbnails"
 
 # Generate thumbnails for specific model (called from generate_thumbnails)
@@ -247,7 +257,7 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         if not processed or not processed.images:
             raise ValueError("No images were generated.")
 
-        print(f"\n\nThumbnail generated and saved as {output_path}.{shared.opts.samples_save}")
+        print(f"\n\nThumbnail generated and saved as {output_path}.png")
 
     except Exception as e:
         print(f"Error in generating thumbnail for {model_name}: {e}")
@@ -409,6 +419,7 @@ print ("Thumbnailizer initialized")
 
 '''
 Todo / Roadmap
+Create a custom_blocklist, so that updates to the default one don't overwrite existing ones.
 Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
 Refresh thumbnails when a generation is done
 During generation, update a count/progress bar in the UI
@@ -416,6 +427,7 @@ Allow switching of multiple blocklists with a drop-down
 Support other than default as the default set
 Support removal of default?
 Consider side-by-side comparison
-Verify uniqueness in sets.json
+Verify uniqueness in sets json
 Verify blocklist on loading and warn user about incorrect data
+Generate for all missing?
 '''
