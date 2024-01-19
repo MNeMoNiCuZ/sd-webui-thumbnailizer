@@ -24,7 +24,7 @@ Easily edit the set list in a .JSON-file format to customize the Set dropdown me
 Batch generate thumbnails for each of your models based on the set file. Generation has settings for how many images to generate, and if it's allowed to override existing thumbnails.
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/40930bd2-6232-4e4e-803e-0b1f268731df)
-_Set the [end index] to -1 to generate all missing thumbnails for a set, or check the "Overwrite" setting to re-generate all._
+_Set the [Last Index] to -1 to generate all missing thumbnails for a set, or check the "Overwrite" setting to re-generate all._
 
 ## Customizable Blocklist
 Some models are not that useful for this. I'm looking at you v1-5-pruned! Just add it to your blocklist and it won't show up in the thumbnail gallery, and it will be ignored during thumbnail generation.
