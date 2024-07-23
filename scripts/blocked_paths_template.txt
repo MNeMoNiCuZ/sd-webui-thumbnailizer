@@ -1,0 +1,8 @@
+# List your folder paths to block here, one per line
+# True means this folder is hidden
+# False means it will be visible
+1.5,False
+1.5/LCM,False
+PDXL,False
+SDXL,False
+SDXL/Lightning,False

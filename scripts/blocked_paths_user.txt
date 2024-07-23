@@ -1,0 +1,3 @@
+# List your folder paths to block here, one per line
+# True means this folder is hidden
+# False means it will be visible

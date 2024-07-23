@@ -34,6 +34,7 @@ if not os.path.exists(sets_file_path):
 if not os.path.exists(model_blocklist_file_path):
     print("Thumbnailizer Error: Unable to locate or create the blocklist_user.json file.")
 
+global current_set_name, current_suffix, gallery, blocked_paths, blocklist, set_data, all_model_names, all_model_paths, relevant_model_names, relevant_model_paths, data
 
 current_set_name = "Default" #string
 current_suffix = "" #string
@@ -47,6 +48,12 @@ gallery = None # Instance of gr.Gallery
 gallery_height = 1000 #int
 thumbnail_columns = 6 #int
 gallery_fit = "contain" #str
+
+# Load json data
+def load_json_data():
+    global data
+    with open(sets_file_path, 'r') as file:
+        data = json.load(file)
 
 # Load settings.ini
 def load_settings():
@@ -62,27 +69,48 @@ def load_settings():
 
 # Initialization function
 def initialize(set_name="Default", model_blocklist_filename="blocklist_user"):
-    global current_set_name, model_blocklist_file_path, blocklist, set_data
+    global current_set_name, model_blocklist_file_path, blocklist, set_data, blocked_paths
     current_set_name = set_name
     model_blocklist_file_path = os.path.join(script_dir, f'{model_blocklist_filename}.json')
     load_settings()
 
+    print(f"Initializing with set: {current_set_name}, blocklist: {model_blocklist_filename}")
+
     # Load the blocklist
     def load_model_blocklist():
-        global blocklist, set_data
         try:
             with open(model_blocklist_file_path, 'r') as f:
                 return json.load(f)
         except FileNotFoundError:
             print("Error: Blocklist file not found.")
-            return []  # Return an empty list if the file doesn't exist
+            return []
         except json.JSONDecodeError:
             print("Error: Blocklist not properly formatted.")
-            return []  # Return an empty list if the JSON is malformed
+            return []
     blocklist = load_model_blocklist()
-    #print("Loaded blocklist:", blocklist)
+
+    # Load blocked paths
+    blocked_paths_file = os.path.join(script_dir, 'blocked_paths_user.txt')
+    if not os.path.exists(blocked_paths_file):
+        with open(blocked_paths_file, 'w') as f:
+            f.write("# List your folder paths to block here, one per line\n# True means this folder is hidden\n# False means it will be visible\n")
+        blocked_paths = []
+    else:
+        with open(blocked_paths_file, 'r') as f:
+            blocked_paths = []
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    parts = line.split(',')
+                    if len(parts) == 2:
+                        path, enabled = parts
+                        blocked_paths.append((path, enabled.lower() == 'true'))
+                    else:
+                        blocked_paths.append((line, False))
+
     initialize_model_data()
     set_data = get_set_data(current_set_name)
+    print(f"Set data loaded for: {current_set_name}")
 
 # Initialize the model paths
 def initialize_model_data():
@@ -100,14 +128,25 @@ def initialize_model_data():
     for m in model_files:
         if Path(m).suffix in {".ckpt", ".safetensors"}:
             rel_path = os.path.relpath(m, model_path.as_posix())
-            all_model_names.append(Path(rel_path).name)  # Store the name of all models
-            all_model_paths.append(rel_path)  # Store the relative path of all models
+            all_model_names.append(Path(rel_path).name)
+            all_model_paths.append(rel_path)
 
-            if rel_path not in blocklist:
-                relevant_model_names.append(Path(rel_path).name)  # Store the name of non-blocklisted models
-                relevant_model_paths.append(rel_path)  # Store the relative path of non-blocklisted models
-    #print("Relevant Model Names:", relevant_model_names)
-    #print("Relevant Model Paths:", relevant_model_paths)
+            # Normalize the path for comparison
+            normalized_path = Path(rel_path).as_posix()
+
+            # Check if the model is in a blocked folder path
+            is_blocked = False
+            for path, enabled in blocked_paths:
+                if normalized_path.startswith(Path(path).as_posix()):
+                    is_blocked = enabled
+                if normalized_path == Path(path).as_posix() and not enabled:
+                    is_blocked = False
+                    break
+
+            if rel_path not in blocklist and not is_blocked:
+                relevant_model_names.append(Path(rel_path).name)
+                relevant_model_paths.append(rel_path)
+
 
 # Function to get the data of a specific set
 def get_set_data(set_name):
@@ -120,6 +159,7 @@ def get_set_data(set_name):
 
 # Run initialization
 initialize()
+load_json_data()
 
 # Function to get model thumbnail paths
 def get_relevant_thumbnails(suffix=""):
@@ -129,11 +169,9 @@ def get_relevant_thumbnails(suffix=""):
 
     for model_path in relevant_model_paths:
         model_path_obj = Path(model_path)
-        model_name = model_path_obj.stem  # Get the base name of the model
+        model_name = model_path_obj.stem
         thumb_file = model_name + suffix + '.png' if suffix else model_name + '.png'
-        thumbnail_path = Path(ckpt_dir) / model_path_obj.parent / thumb_file  # Corrected path
-
-        #print(f"Checking thumbnail for {model_name}: Path - {thumbnail_path}")
+        thumbnail_path = Path(ckpt_dir) / model_path_obj.parent / thumb_file
 
         if thumbnail_path.exists():
             thumbnails.append((str(thumbnail_path), model_name))
@@ -144,10 +182,11 @@ def get_relevant_thumbnails(suffix=""):
 
 # Start thumbnail generation
 def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
+    global gallery
     filtered_model_names = []
     filtered_model_paths = []
     generation_set_data = set_data
-    print(f"--------------------------------------------------------\nThumbnailizer generation initializing")
+    print(f"--------------------------------------------------------\nThumbnailizer generation initializing for set: {current_set_name}")
     print(f"Filtering models using blocklist_user.json\n")
 
     for model_name in relevant_model_names:
@@ -159,49 +198,49 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
         thumbnail_file_name = Path(model_name).stem + suffix + '.png'
         thumbnail_path = Path(ckpt_dir) / Path(model_file_path).parent / thumbnail_file_name
 
-        #print(f"Looking for thumbnail at: {thumbnail_path}")
-
         if not overwrite and thumbnail_path.exists():
-            #print(f"Thumbnail already exists for {model_name} {thumbnail_file_name}, skipping...")
             continue
 
         filtered_model_names.append(model_name)
         filtered_model_paths.append(model_file_path)
 
-    #print("Filtered Model Names:", filtered_model_names)    print("Start Index:", start_index, "End Index:", end_index)
-
-    # Convert start_index and end_index to integers and adjust for inclusive range
     start_index = max(0, min(int(start_index), len(filtered_model_names) - 1))
     end_index = min(int(end_index), len(filtered_model_names) - 1) if int(end_index) != -1 else len(filtered_model_names) - 1
-    # Calculate the total number of models to be processed
     total_to_process = (end_index - start_index) + 1
 
-    # Cache the set name we are generating
-    current_processing_set_name = current_set_name
+    if total_to_process == 0:
+        print("No thumbnails to generate.")
+        return "No thumbnails to generate."
 
-    #print("Adjusted Start Index:", start_index, "Adjusted End Index:", end_index)
-    print(f"Generating {total_to_process} thumbnails")
+    print(f"Generating {total_to_process} thumbnails for set: {current_set_name}")
 
     processed_count = 0
-    # Process only models within the specified range
     for i in range(start_index, end_index + 1):
         model_name = filtered_model_names[i]
-        full_model_path = os.path.join(ckpt_dir, filtered_model_paths[i])  # Construct the full path
+        full_model_path = os.path.join(ckpt_dir, filtered_model_paths[i])
         try:
-            print(f"Generating '{current_processing_set_name}' thumbnail for model: {model_name}\n")
+            print(f"Generating '{current_set_name}' thumbnail for model: {model_name}\n")
             generate_thumbnail_for_model(generation_set_data, model_name, suffix, filtered_model_paths[i], full_model_path)
             processed_count += 1
             print(f"Processed {processed_count}/{total_to_process} thumbnails")
         except Exception as e:
             print(f"Error generating thumbnail for {model_name}: {e}")
-    print (f"\nThumbnailizer - Finished processing {processed_count} thumbnails")
+    
+    print(f"\nThumbnailizer - Finished processing {processed_count} thumbnails")
+    
+    try:
+        load_json_data()
+        gallery_data = update_gallery(current_set_name)
+        gallery.update(value=gallery_data)
+    except Exception as e:
+        print(f"Error updating gallery: {e}")
+    
     return f"Finished processing {processed_count} thumbnails"
 
 # Generate thumbnails for specific model (called from generate_thumbnails)
 def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path):
     # Initialize processed to None
     processed = None
-
     try:
         # Set up processing parameters
         p = processing.StableDiffusionProcessingTxt2Img(
@@ -216,76 +255,87 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
             seed=int(generation_set_data.get("seed", -1)),
             override_settings={"sd_model_checkpoint": model_path}
         )
-
         # Find the full path of the model
         model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem),
                                None)
         if model_full_path is None:
             raise FileNotFoundError(f"Model file for {model_name} not found or is blocklisted.")
-
         # Use the model's directory to save the thumbnail
         model_directory = Path(ckpt_dir) / Path(model_full_path).parent
-        suffix_str = f".{suffix}" if suffix and not suffix.startswith(".") else suffix
-        output_filename = f"{Path(model_name).stem}{suffix_str}"
+        output_filename = f"{Path(model_name).stem}{suffix}"
         output_path = model_directory / output_filename
-
         # disable saving of grid
         p.do_not_save_grid = True
-        # disable saveing image to subdirectories
+        # disable saving image to subdirectories
         p.override_settings['save_to_dirs'] = False
         # set image output directory
         p.outpath_samples = str(model_directory)
         # set the image filename
         p.override_settings['samples_filename_pattern'] = output_filename
-
-
+        print(f"Generating thumbnail for model: {model_name} at path: {full_model_path} with output: {output_path}")
         # Perform necessary pre-processing or initialization
         p.init(["Empty Prompt"],[-1],[-1])
-
         # Print model info
         #print (f"\n****************************************************************************\nModel:{model_name}\nRelative Path:{model_path}\nFull Path:{full_model_path}.\n****************************************************************************\n")
-
         # Print set data
         #print(f"Retrieved set data for '{current_set_name}': {set_data}\n")
-        
+       
         # Process the image
         with closing(p):
             if processed is None:
-                processed = processing.process_images(p)
-
+                try:
+                    processed = processing.process_images(p)
+                except AttributeError as ae:
+                    if "'NoneType' object has no attribute 'options'" in str(ae):
+                        print(f"Warning: Sampler configuration issue for {model_name}. Trying with default sampler.")
+                        p.sampler_name = "Euler a"  # Use a default sampler
+                        processed = processing.process_images(p)
+                    else:
+                        raise
         # Ensure that images were generated
         if not processed or not processed.images:
             raise ValueError("No images were generated.")
-
         print(f"\n\nThumbnail generated and saved as {output_path}.png")
-
     except Exception as e:
         print(f"Error in generating thumbnail for {model_name}: {e}")
         traceback.print_exc()
 
+# Load model paths and blocklist for the dropdown
+def update_gallery(set_name):
+    global current_suffix, data
+    suffix = ""
+    for item in data["sets"]:
+        if item["displayName"] == set_name:
+            suffix = item['suffix']
+            if suffix:
+                suffix = '.' + suffix  # Only add a period if the suffix is not empty
+            break
+    print(f"Thumbnailizer: Switched to set: {set_name} ({suffix})")
+    current_suffix = suffix
+    thumbnails = get_relevant_thumbnails(suffix)
+    print(f"Thumbnailizer: Found {len(thumbnails)} relevant thumbnails")
+    return [(path, name) for path, name in thumbnails]
+
+# Functionality to generate thumbnails for all sets
+def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=False):
+    global data
+    all_thumbnails = []
+    for set_item in data["sets"]:
+        set_name = set_item["displayName"]
+        initialize(set_name=set_name)
+        generate_thumbnails("", overwrite, start_index, end_index)
+        all_thumbnails.extend(get_relevant_thumbnails(""))
+    gallery.update(all_thumbnails)
+    
 # Thumbnailizer UI
 def on_ui_tabs():
-    global current_suffix, gallery
+    global current_suffix, gallery, blocked_paths
     current_suffix = ''    # Initialize with empty string
 
     # Load choices from JSON
     with open(sets_file_path, 'r') as file:
         data = json.load(file)
     set_choices = [item["displayName"] for item in data["sets"]]
-
-    # Load model paths and blocklist for the dropdown
-    def update_gallery(set_name):
-        global current_suffix
-        suffix = ""
-        for item in data["sets"]:
-            if item["displayName"] == set_name:
-                suffix = item['suffix']
-                if suffix:
-                    suffix = '.' + suffix  # Only add a period if the suffix is not empty
-                break
-        print(f"Thumbnailizer: Switched to set: {set_name} ({suffix})")  # Debug print to check the suffix
-        current_suffix = suffix  # Update the global suffix variable
-        return [(path, name) for path, name in get_relevant_thumbnails(suffix)]
     
     # Function to save model blocklist to a file
     def save_model_blocklist(selected_models):
@@ -317,6 +367,7 @@ def on_ui_tabs():
             # Generate button
             with gr.Row():
                 generate_button = gr.Button("Generate Thumbnails")
+                generate_all_button = gr.Button("Generate Thumbnails for All Sets")
             with gr.Row():
                 generating_message = gr.Markdown()
 
@@ -327,13 +378,39 @@ def on_ui_tabs():
             generate_thumbnails_button = gr.Button(visible=False)
 
             def display_generating_message(overwrite, start_index, end_index):
-                # Convert start_index and end_index to integers
+                start_index = int(start_index)
+                end_index = int(end_index)
+                
+                # Ensure we're using the current set
+                current_set_name = set_dropdown.value
+                initialize(current_set_name)
+                
+                thread = threading.Thread(target=generate_thumbnails, args=(current_suffix, overwrite, start_index, end_index))
+                thread.start()
+                return f"Generating thumbnails for set: {current_set_name}. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
+
+            def display_generating_all_message(overwrite, start_index, end_index):
                 start_index = int(start_index)
                 end_index = int(end_index)
 
-                thread = threading.Thread(target=generate_thumbnails, args=(current_suffix, overwrite, start_index, end_index))
+                thread = threading.Thread(target=generate_thumbnails_for_all_sets, args=(start_index, end_index, overwrite))
                 thread.start()
-                return f"Generating thumbnails. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
+                return f"Generating thumbnails for all sets. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
+
+            def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=False):
+                global data, current_set_name, set_data
+                all_thumbnails = []
+                for set_item in data["sets"]:
+                    set_name = set_item["displayName"]
+                    current_set_name = set_name
+                    set_data = set_item
+                    suffix = set_item.get('suffix', '')
+                    if suffix:
+                        suffix = '.' + suffix
+                    print(f"Generating thumbnails for set: {set_name} with suffix: {suffix}")
+                    generate_thumbnails(suffix, overwrite, start_index, end_index)
+                    all_thumbnails.extend(get_relevant_thumbnails(suffix))
+                gallery.update(all_thumbnails)
 
             # Initiate actual generation
             def initiate_thumbnail_generation(state, overwrite, start_index, end_index):
@@ -343,11 +420,18 @@ def on_ui_tabs():
             
             # Generate button action
             generate_button.click(
-                display_generating_message,
+                fn=display_generating_message,
                 inputs=[overwrite_checkbox, start_index_input, last_index_input],
                 outputs=[generating_message, generation_state]
             )
 
+            generate_all_button.click(
+                fn=display_generating_all_message,
+                inputs=[overwrite_checkbox, start_index_input, last_index_input],
+                outputs=[generating_message, generation_state]
+            )
+           
+            
             # Invisible button click event
             generate_thumbnails_button.click(
                 initiate_thumbnail_generation,
@@ -379,17 +463,69 @@ def on_ui_tabs():
 
             # Function to save model blocklist and update message
             def save_model_blocklist_and_update_message(selected_models):
-                save_model_blocklist(selected_models)
+                global blocklist, data
+                blocklist = selected_models
+                with open(model_blocklist_file_path, 'w') as f:
+                    json.dump(selected_models, f)
+                print("Thumbnailizer: Model blocklist saved to:", model_blocklist_file_path)
+                
+                # Re-initialize with the new blocklist
                 initialize(current_set_name)
-                return f"Blocklist updated: {model_blocklist_file_path}"
+                
+                # Reload JSON data
+                load_json_data()
+                
+                # Update the gallery
+                gallery_data = update_gallery(current_set_name)
+                
+                message = f"Blocklist updated: {model_blocklist_file_path}"
+                return message, gallery_data
 
-            # Save blocklist button
+            # Update the save blocklist button click event
             save_selection_button.click(
                 fn=save_model_blocklist_and_update_message,
                 inputs=[model_list_dropdown],
-                outputs=[blocklist_message]
+                outputs=[blocklist_message, gallery]
             )
+                    
+######################## BLOCKED PATHS SECTION ########################
+        with gr.Box(elem_classes="ch_box"):
+            gr.Markdown("## Blocked Paths")
+            gr.Markdown(f"To edit the available blocked paths, open this file with a text editor: `{os.path.join(script_dir, 'blocked_paths_user.txt')}`")
+            blocked_paths_checkboxes = gr.CheckboxGroup(
+                choices=[path for path, _ in blocked_paths],
+                value=[path for path, enabled in blocked_paths if enabled], label="Select which paths to block and ignore."
+            )
+            with gr.Row():
+                update_blocked_paths_button = gr.Button("Update Blocked Paths")
+            with gr.Row():
+                blocked_paths_message = gr.Markdown()
 
+        # Function to update blocked paths
+        def update_blocked_paths(checkbox_values):
+            global blocked_paths
+            updated_paths = [(path, path in checkbox_values) for path, _ in blocked_paths]
+            with open(os.path.join(script_dir, 'blocked_paths_user.txt'), 'w') as f:
+                f.write("# List your folder paths to block here, one per line\n# True means this folder is hidden\n# False means it will be visible\n")
+                for path, enabled in updated_paths:
+                    f.write(f"{path},{enabled}\n")
+            blocked_paths = updated_paths
+            
+            # Re-initialize model data after updating blocked paths
+            initialize_model_data()
+            
+            # Update the gallery after changing blocked paths
+            gallery_data = update_gallery(current_set_name)
+            return "Blocked paths updated successfully!", gallery_data
+
+
+        # Update blocked paths button
+        update_blocked_paths_button.click(
+            fn=update_blocked_paths,
+            inputs=blocked_paths_checkboxes,
+            outputs=[blocked_paths_message, gallery]
+        )
+        
 ######################## MISC ########################
         # Handle set changes
         def on_set_change(set_name):
@@ -402,12 +538,12 @@ def on_ui_tabs():
             # Update the gallery
             gallery_data = update_gallery(set_name)
             gallery.update(gallery_data)
-            return (gallery_data)
+            return gallery_data
 
         # Event handling for the Set List dropdown change
         set_dropdown.change(
             fn=on_set_change,
-            inputs=set_dropdown,
+            inputs=[set_dropdown],
             outputs=[gallery]
         )
 
@@ -416,18 +552,3 @@ def on_ui_tabs():
 script_callbacks.on_ui_tabs(on_ui_tabs)
 
 print ("Thumbnailizer initialized")
-
-'''
-Todo / Roadmap
-Create a custom_blocklist, so that updates to the default one don't overwrite existing ones.
-Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
-Refresh thumbnails when a generation is done
-During generation, update a count/progress bar in the UI
-Allow switching of multiple blocklists with a drop-down
-Support other than default as the default set
-Support removal of default?
-Consider side-by-side comparison
-Verify uniqueness in sets json
-Verify blocklist on loading and warn user about incorrect data
-Generate for all missing?
-'''
