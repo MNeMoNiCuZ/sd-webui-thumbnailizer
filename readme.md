@@ -32,6 +32,10 @@ Some models are not that useful for this. I'm looking at you v1-5-pruned! Just a
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/13f5708a-d59f-4191-bd76-3cd61807bdef)
 _You can use this to disable thumbnail generation for SDXL models if you want to generate them with other settings. You can manually swap between different blocklist files for now._
 
+## Blocked Folders / Paths
+![image](https://github.com/user-attachments/assets/cd5a53bd-5dc6-4966-8d8d-35e78bd660c6)
+_You can select entire folders that should be ignored by the tool. Useful if you have models that need specific settings, or want to switch between generating thumbnails for SDXL / SD1.5._
+
 ## Supports Civitai Helper Thumbnails
 If you are already using the [Civitai Helper-extension](https://github.com/zixaphir/Stable-Diffusion-Webui-Civitai-Helper/) (forked from [this one](https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper)), to download thumbnails and model info, their thumbnails are saved as modelname.preview.png. This is added to the set-list as one of the types, so you can easily switch to the original model thumbnails to view them, even if you are customizing your own sets.
 
