@@ -371,7 +371,6 @@ def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=Fals
     
 # Thumbnailizer UI
 def on_ui_tabs():
-    print("Thumbnailizer: on_ui_tabs called")
     global current_suffix, gallery, blocked_paths
     current_suffix = ''    # Initialize with empty string
 
