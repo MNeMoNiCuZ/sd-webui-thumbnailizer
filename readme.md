@@ -84,7 +84,7 @@ v0.31 - Generate a sets_user.json
 
 v0.32 - Generate a blocklist_user.json
 
-v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#blocked-folders-paths).
+v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#blocked-folders--paths).
 
 v0.34 - Added [Override Settings](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#use-override-settings).
 
