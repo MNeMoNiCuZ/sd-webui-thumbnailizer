@@ -24,13 +24,26 @@ Easily edit the set list in a .JSON-file format to customize the Set dropdown me
 Batch generate thumbnails for each of your models based on the set file. Generation has settings for how many images to generate, and if it's allowed to override existing thumbnails.
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/40930bd2-6232-4e4e-803e-0b1f268731df)
+
 _Set the [Last Index] to -1 to generate all missing thumbnails for a set, or check the "Overwrite" setting to re-generate all._
 
+## Generate for All Sets
+![image](https://github.com/user-attachments/assets/79e3b0dc-245b-47a7-81cb-ef941f488be2)
+
+_Use this button to generate thumbnails for all the possible sets from the Sets-dropdown, instead of just the currently selected one._
+
+## Use Override Settings
+![image](https://github.com/user-attachments/assets/6970f0f7-28be-41d9-8315-5028d7915fb9)
+
+_Use this setting to override generation settings from the override_settings_user.txt-file. This will be created during a first launch if it doesn't exist. This is checked when generation starts and does not require a restart of the webui._
+
+This is meant to let you re-use the same set-prompts but change settings like CFG Scale or add some specific triggers as a prefix for the prompts (useful for Pony-models).
+
 ## Customizable Blocklist
-Some models are not that useful for this. I'm looking at you v1-5-pruned! Just add it to your blocklist and it won't show up in the thumbnail gallery, and it will be ignored during thumbnail generation.
+Use the drop-down model selector to select some models to ignore.
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/13f5708a-d59f-4191-bd76-3cd61807bdef)
-_You can use this to disable thumbnail generation for SDXL models if you want to generate them with other settings. You can manually swap between different blocklist files for now._
+_Use this list disable thumbnail generation for SDXL models if you want to generate them with other settings. You can manually swap between different blocklist files for now._
 
 ## Blocked Folders / Paths
 ![image](https://github.com/user-attachments/assets/cd5a53bd-5dc6-4966-8d8d-35e78bd660c6)
@@ -71,13 +84,15 @@ v0.31 - Generate a sets_user.json
 
 v0.32 - Generate a blocklist_user.json
 
+v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer).
+
+v0.34 - Added settings override.
+
 # Todo / Wishlist
 * Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
 * Refresh thumbnails when a generation is done
 * During generation, update a count/progress bar in the UI
-* Allow switching of multiple blocklists with a drop-down
 * Support other than default as the default set
-* Support removal of default?
 * Consider side-by-side comparison
 * Verify uniqueness in sets.json
 * Verify blocklist on loading and warn user about incorrect data
