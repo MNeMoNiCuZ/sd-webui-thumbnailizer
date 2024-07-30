@@ -76,25 +76,10 @@ Likely an initialization issue. Try force-refreshing your A1111, or restarting t
 
 
 # Changelog
-v0.29 - Initial release
-
-v0.30 - Include metadata in generated thumbnails
-
-v0.31 - Generate a sets_user.json
-
-v0.32 - Generate a blocklist_user.json
-
-v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#blocked-folders--paths).
-
-v0.34 - Added [Override Settings](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#use-override-settings).
-
-v0.35 - Optimized multi-set generation, fixed bugs with the wrong set being generated.
-
-# Todo / Wishlist
-* Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
-* Refresh thumbnails when a generation is done
-* During generation, update a count/progress bar in the UI
-* Support other than default as the default set
-* Consider side-by-side comparison
-* Verify uniqueness in sets.json
-* Verify blocklist on loading and warn user about incorrect data
+* v0.29 - Initial release
+* v0.30 - Include metadata in generated thumbnails
+* v0.31 - Generate a sets_user.json
+* v0.32 - Generate a blocklist_user.json
+* v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#blocked-folders--paths).
+* v0.34 - Added [Override Settings](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#use-override-settings).
+* v0.35 - Optimized multi-set generation, fixed bugs with the wrong set being generated.
