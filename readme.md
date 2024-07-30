@@ -56,6 +56,8 @@ If you are already using the [Civitai Helper-extension](https://github.com/zixap
 
 
 # Installation
+Make sure to disable the `Add number to filename when saving` option in `Settings` for A1111 as this may interfere with the generated thumbnails.
+
 You can use the official extension-list and just search for "thumbnailizer":
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/7266414e-199a-4276-bea4-880a6ed29ac1)
 
@@ -63,7 +65,7 @@ Alternatively you can go to the Extensions-tab in A1111 and select the "Install 
 
 ![image](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/assets/60541708/d7c188ef-40c7-415e-a984-191cf52f0c51)
 
-And lastly, you can manually install the extension by downloading this space and placing it in your /stable-diffusion-webui/extensions-folder. To verify the folder structure afterwards, you should have a path like this: `\stable-diffusion-webui\extensions\sd-webui-thumbnailizer\scripts\`
+You can manually install the extension by downloading this space and placing it in your /stable-diffusion-webui/extensions-folder. To verify the folder structure afterwards, you should have a path like this: `\stable-diffusion-webui\extensions\sd-webui-thumbnailizer\scripts\`
 
 # Known Issues
 >IndexError: list index out of range
@@ -73,6 +75,10 @@ The script failed to count the number of images correctly. Make sure that your S
 >AttributeError: 'NoneType' object has no attribute 'get'
 
 Likely an initialization issue. Try force-refreshing your A1111, or restarting the A1111 server completely. Let it finish loading everything before using Thumbnailizer. It's sensitive.
+
+>Thumbnails keep getting numbers added to their names (00001- or 00003 etc).
+
+Make sure you disable the `Add number to filename when saving` option in `Settings` for A1111 as this interferes with the generated thumbnails.
 
 
 # Changelog
