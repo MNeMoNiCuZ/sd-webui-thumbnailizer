@@ -1,5 +1,6 @@
 # Standard library imports
 import os
+import sys
 import shutil
 import json
 import glob
@@ -9,12 +10,21 @@ from pathlib import Path
 from contextlib import closing
 import traceback
 
+# Add the current directory to Python path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.append(script_dir)
+
 # Third party libraries, may need to be installed manually
 import gradio as gr
 from PIL import Image
 
 # Automatic1111 specific imports
 from modules import script_callbacks, shared, sd_models, processing, images
+
+# Thumbnailizer script imports
+from override_settings import load_override_settings, apply_override_settings, create_override_settings_template
+
 
 # Pre-initialization
 ckpt_dir = shared.cmd_opts.ckpt_dir or sd_models.model_path #string
@@ -34,8 +44,16 @@ if not os.path.exists(sets_file_path):
 if not os.path.exists(model_blocklist_file_path):
     print("Thumbnailizer Error: Unable to locate or create the blocklist_user.json file.")
 
+# Load override settings
+override_settings_file = os.path.join(script_dir, 'override_settings_user.txt')
+if not os.path.exists(override_settings_file):
+    create_override_settings_template(override_settings_file)
+override_settings = load_override_settings(override_settings_file)
+
+# Global variables
 global current_set_name, current_suffix, gallery, blocked_paths, blocklist, set_data, all_model_names, all_model_paths, relevant_model_names, relevant_model_paths, data
 
+# Configuration
 current_set_name = "Default" #string
 current_suffix = "" #string
 blocklist = None #string
@@ -74,8 +92,6 @@ def initialize(set_name="Default", model_blocklist_filename="blocklist_user"):
     model_blocklist_file_path = os.path.join(script_dir, f'{model_blocklist_filename}.json')
     load_settings()
 
-    print(f"Initializing with set: {current_set_name}, blocklist: {model_blocklist_filename}")
-
     # Load the blocklist
     def load_model_blocklist():
         try:
@@ -110,7 +126,6 @@ def initialize(set_name="Default", model_blocklist_filename="blocklist_user"):
 
     initialize_model_data()
     set_data = get_set_data(current_set_name)
-    print(f"Set data loaded for: {current_set_name}")
 
 # Initialize the model paths
 def initialize_model_data():
@@ -181,13 +196,24 @@ def get_relevant_thumbnails(suffix=""):
     return thumbnails
 
 # Start thumbnail generation
-def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
+def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1, use_override_settings=False):
     global gallery
+    
     filtered_model_names = []
     filtered_model_paths = []
-    generation_set_data = set_data
+    generation_set_data = set_data.copy()  # Create a copy to avoid modifying the original
     print(f"--------------------------------------------------------\nThumbnailizer generation initializing for set: {current_set_name}")
     print(f"Filtering models using blocklist_user.json\n")
+    
+    if use_override_settings:
+        override_settings = load_override_settings(override_settings_file)
+        print("Using settings override:")
+        for key, value in override_settings.items():
+            if value:  # Only print non-empty overrides
+                print(f"  {key}: {value}")
+        generation_set_data = apply_override_settings(generation_set_data, override_settings)
+    else:
+        print("Not using settings override")
 
     for model_name in relevant_model_names:
         model_file_path = next((path for path in relevant_model_paths if Path(path).name == model_name), None)
@@ -220,7 +246,7 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
         full_model_path = os.path.join(ckpt_dir, filtered_model_paths[i])
         try:
             print(f"Generating '{current_set_name}' thumbnail for model: {model_name}\n")
-            generate_thumbnail_for_model(generation_set_data, model_name, suffix, filtered_model_paths[i], full_model_path)
+            generate_thumbnail_for_model(generation_set_data, model_name, suffix, filtered_model_paths[i], full_model_path, use_override_settings)
             processed_count += 1
             print(f"Processed {processed_count}/{total_to_process} thumbnails")
         except Exception as e:
@@ -238,10 +264,20 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1):
     return f"Finished processing {processed_count} thumbnails"
 
 # Generate thumbnails for specific model (called from generate_thumbnails)
-def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path):
+def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings):
     # Initialize processed to None
     processed = None
     try:
+        if use_override_settings:
+            print(f"Thumbnailizer: Using override settings for model: {model_name}")
+            override_settings = load_override_settings(override_settings_file)
+            generation_set_data = apply_override_settings(generation_set_data.copy(), override_settings)
+            print(f"Thumbnailizer: Generation metadata for {model_name}:")
+            for key, value in generation_set_data.items():
+                print(f"  {key}: {value}")
+        else:
+            print(f"Thumbnailizer: Not using override settings for model: {model_name}")
+
         # Set up processing parameters
         p = processing.StableDiffusionProcessingTxt2Img(
             sd_model=shared.sd_model,
@@ -255,6 +291,7 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
             seed=int(generation_set_data.get("seed", -1)),
             override_settings={"sd_model_checkpoint": model_path}
         )
+
         # Find the full path of the model
         model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem),
                                None)
@@ -317,14 +354,19 @@ def update_gallery(set_name):
     return [(path, name) for path, name in thumbnails]
 
 # Functionality to generate thumbnails for all sets
-def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=False):
-    global data
+def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=False, use_override_settings=False):
+    global data, current_set_name, set_data
     all_thumbnails = []
     for set_item in data["sets"]:
         set_name = set_item["displayName"]
-        initialize(set_name=set_name)
-        generate_thumbnails("", overwrite, start_index, end_index)
-        all_thumbnails.extend(get_relevant_thumbnails(""))
+        current_set_name = set_name
+        set_data = set_item
+        suffix = set_item.get('suffix', '')
+        if suffix:
+            suffix = '.' + suffix
+        print(f"Generating thumbnails for set: {set_name} with suffix: {suffix}")
+        generate_thumbnails(suffix, overwrite, start_index, end_index, use_override_settings)
+        all_thumbnails.extend(get_relevant_thumbnails(suffix))
     gallery.update(all_thumbnails)
     
 # Thumbnailizer UI
@@ -344,10 +386,11 @@ def on_ui_tabs():
         print("Thumbnailizer: Model blocklist saved to:", model_blocklist_file_path, "")
         return "Model blocklist saved!"
 
-######################## SET SETTINGS SECTION ########################
     with gr.Blocks(analytics_enabled=False) as ui_component:
         # Apply CSS style
         gr.Markdown(f"<link rel='stylesheet' type='text/css' href='{script_dir}/style.css'>")
+
+        ######################## SET SETTINGS SECTION ########################
         with gr.Box(elem_classes="ch_box"):
             # Set List Dropdown
             with gr.Row():
@@ -356,13 +399,14 @@ def on_ui_tabs():
             with gr.Row():
                 gr.Markdown("To edit the sets, open this JSON with a text editor: `{}`".format(user_sets_file_path))
 
-######################## GENERATE SECTION ########################
+        ######################## GENERATE SECTION ########################
         with gr.Box(elem_classes="ch_box"):
             # Settings inputs
             with gr.Row():
                 start_index_input = gr.Number(label="Start Index", value=0)
                 last_index_input = gr.Number(label="Last Index (-1 = last index)", value=-1)
                 overwrite_checkbox = gr.Checkbox(label="Overwrite Existing Thumbnails", value=False)
+                use_override_settings_checkbox = gr.Checkbox(label="Use Override Settings (edit override_settings_user.txt)", value=False)
 
             # Generate button
             with gr.Row():
@@ -377,7 +421,7 @@ def on_ui_tabs():
             # Add an invisible button for triggering thumbnail generation
             generate_thumbnails_button = gr.Button(visible=False)
 
-            def display_generating_message(overwrite, start_index, end_index):
+            def display_generating_message(overwrite, start_index, end_index, use_override_settings):
                 start_index = int(start_index)
                 end_index = int(end_index)
                 
@@ -385,67 +429,51 @@ def on_ui_tabs():
                 current_set_name = set_dropdown.value
                 initialize(current_set_name)
                 
-                thread = threading.Thread(target=generate_thumbnails, args=(current_suffix, overwrite, start_index, end_index))
+                thread = threading.Thread(target=generate_thumbnails, args=(current_suffix, overwrite, start_index, end_index, use_override_settings))
                 thread.start()
                 return f"Generating thumbnails for set: {current_set_name}. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
 
-            def display_generating_all_message(overwrite, start_index, end_index):
+            def display_generating_all_message(overwrite, start_index, end_index, use_override_settings):
                 start_index = int(start_index)
                 end_index = int(end_index)
 
-                thread = threading.Thread(target=generate_thumbnails_for_all_sets, args=(start_index, end_index, overwrite))
+                thread = threading.Thread(target=generate_thumbnails_for_all_sets, args=(start_index, end_index, overwrite, use_override_settings))
                 thread.start()
                 return f"Generating thumbnails for all sets. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
 
-            def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=False):
-                global data, current_set_name, set_data
-                all_thumbnails = []
-                for set_item in data["sets"]:
-                    set_name = set_item["displayName"]
-                    current_set_name = set_name
-                    set_data = set_item
-                    suffix = set_item.get('suffix', '')
-                    if suffix:
-                        suffix = '.' + suffix
-                    print(f"Generating thumbnails for set: {set_name} with suffix: {suffix}")
-                    generate_thumbnails(suffix, overwrite, start_index, end_index)
-                    all_thumbnails.extend(get_relevant_thumbnails(suffix))
-                gallery.update(all_thumbnails)
-
             # Initiate actual generation
-            def initiate_thumbnail_generation(state, overwrite, start_index, end_index):
+            def initiate_thumbnail_generation(state, overwrite, start_index, end_index, use_override_settings):
                 if state:
-                    generate_thumbnails(current_suffix, overwrite, start_index, end_index)
+                    generate_thumbnails(current_suffix, overwrite, start_index, end_index, use_override_settings)
                 return state
             
             # Generate button action
             generate_button.click(
                 fn=display_generating_message,
-                inputs=[overwrite_checkbox, start_index_input, last_index_input],
+                inputs=[overwrite_checkbox, start_index_input, last_index_input, use_override_settings_checkbox],
                 outputs=[generating_message, generation_state]
             )
 
             generate_all_button.click(
                 fn=display_generating_all_message,
-                inputs=[overwrite_checkbox, start_index_input, last_index_input],
+                inputs=[overwrite_checkbox, start_index_input, last_index_input, use_override_settings_checkbox],
                 outputs=[generating_message, generation_state]
             )
            
-            
             # Invisible button click event
             generate_thumbnails_button.click(
                 initiate_thumbnail_generation,
-                inputs=[generation_state, overwrite_checkbox, start_index_input, last_index_input],
+                inputs=[generation_state, overwrite_checkbox, start_index_input, last_index_input, use_override_settings_checkbox],
                 outputs=[]
             )
 
-######################## GALLERY SECTION ########################
+        ######################## GALLERY SECTION ########################
         with gr.Box(elem_classes="ch_box"):
             # Gallery    
             with gr.Row():
                 gallery = gr.Gallery(value=get_relevant_thumbnails(current_suffix), columns=thumbnail_columns, height=gallery_height, object_fit=gallery_fit)
 
-######################## BLOCKLIST SECTION ########################
+        ######################## BLOCKLIST SECTION ########################
         with gr.Box(elem_classes="ch_box"):
             # Load the current blocklist
 
@@ -488,7 +516,7 @@ def on_ui_tabs():
                 outputs=[blocklist_message, gallery]
             )
                     
-######################## BLOCKED PATHS SECTION ########################
+        ######################## BLOCKED PATHS SECTION ########################
         with gr.Box(elem_classes="ch_box"):
             gr.Markdown("## Blocked Paths")
             gr.Markdown(f"To edit the available blocked paths, open this file with a text editor: `{os.path.join(script_dir, 'blocked_paths_user.txt')}`")
@@ -518,7 +546,6 @@ def on_ui_tabs():
             gallery_data = update_gallery(current_set_name)
             return "Blocked paths updated successfully!", gallery_data
 
-
         # Update blocked paths button
         update_blocked_paths_button.click(
             fn=update_blocked_paths,
@@ -526,7 +553,7 @@ def on_ui_tabs():
             outputs=[blocked_paths_message, gallery]
         )
         
-######################## MISC ########################
+        ######################## MISC ########################
         # Handle set changes
         def on_set_change(set_name):
             global current_set_name, set_data
@@ -547,7 +574,7 @@ def on_ui_tabs():
             outputs=[gallery]
         )
 
-    return [(ui_component, "Thumbnailizer", "extension_template_tab")]
+    return [(ui_component, "Thumbnailizer", "thumbnailizer_tab")]
 
 script_callbacks.on_ui_tabs(on_ui_tabs)
 
