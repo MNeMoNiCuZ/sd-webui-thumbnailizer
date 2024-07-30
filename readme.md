@@ -88,6 +88,8 @@ v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailiz
 
 v0.34 - Added [Override Settings](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#use-override-settings).
 
+v0.35 - Optimized multi-set generation, fixed bugs with the wrong set being generated.
+
 # Todo / Wishlist
 * Improve CSS for gallery styling, avoid the current square format, use the "cover" type to crop/fill properly
 * Refresh thumbnails when a generation is done
