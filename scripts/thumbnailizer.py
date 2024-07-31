@@ -143,7 +143,7 @@ def initialize_model_data():
     for m in model_files:
         if Path(m).suffix in {".ckpt", ".safetensors"}:
             rel_path = os.path.relpath(m, model_path.as_posix())
-            all_model_names.append(Path(m).name)  # Use full name instead of stem
+            all_model_names.append(Path(rel_path).name)
             all_model_paths.append(rel_path)
 
             # Normalize the path for comparison
@@ -159,11 +159,8 @@ def initialize_model_data():
                     break
 
             if rel_path not in blocklist and not is_blocked:
-                relevant_model_names.append(Path(m).name)  # Use full name instead of stem
+                relevant_model_names.append(Path(rel_path).name)
                 relevant_model_paths.append(rel_path)
-
-    print(f"Debug: Total models found: {len(all_model_names)}")
-    print(f"Debug: Relevant models: {len(relevant_model_names)}")
 
 
 # Function to get the data of a specific set
@@ -187,16 +184,32 @@ def get_relevant_thumbnails(suffix=""):
 
     for model_path in relevant_model_paths:
         model_path_obj = Path(model_path)
-        model_name = model_path_obj.stem
-        thumb_file = model_name + suffix + '.png' if suffix else model_name + '.png'
-        thumbnail_path = Path(ckpt_dir) / model_path_obj.parent / thumb_file
+        
+        # Correctly split the model name, preserving all but the last extension
+        model_stem = model_path_obj.stem
+        base_model_name = model_stem  # Keep the full stem of the model name
+        full_model_name = model_path_obj.name
 
-        if thumbnail_path.exists():
-            thumbnails.append((str(thumbnail_path), model_name))
+        # Check for thumbnail with set-specific suffix
+        thumb_file_with_suffix = f"{base_model_name}{suffix}.png"
+        thumbnail_path_with_suffix = Path(ckpt_dir) / model_path_obj.parent / thumb_file_with_suffix
+        
+        # Check for thumbnail without set-specific suffix (default)
+        thumb_file_without_suffix = f"{base_model_name}.png"
+        thumbnail_path_without_suffix = Path(ckpt_dir) / model_path_obj.parent / thumb_file_without_suffix
+
+        # Check for thumbnails in this order: with suffix, without suffix, default
+        if suffix and thumbnail_path_with_suffix.exists():
+            thumbnails.append((str(thumbnail_path_with_suffix), full_model_name))
+        elif suffix and not thumbnail_path_with_suffix.exists():
+            thumbnails.append((str(missing_thumbnail_path), full_model_name))
+        elif not suffix and thumbnail_path_without_suffix.exists():
+            thumbnails.append((str(thumbnail_path_without_suffix), full_model_name))
         else:
-            thumbnails.append((str(missing_thumbnail_path), model_name))
+            thumbnails.append((str(missing_thumbnail_path), full_model_name))
 
     return thumbnails
+
 
 # Start thumbnail generation
 def generate_thumbnails(set_name, set_data, suffix, overwrite=False, start_index=0, end_index=-1, use_override_settings=False):
@@ -231,17 +244,11 @@ def generate_thumbnails(set_name, set_data, suffix, overwrite=False, start_index
     print(f"Generating {total_to_process} thumbnails for set: {set_name}")
 
     for i, model_path in enumerate(model_paths):
-        model_name = Path(model_path).stem
+        model_name = Path(model_path).name
         full_model_path = os.path.join(ckpt_dir, model_path)
-
-        thumbnail_path = Path(ckpt_dir) / Path(model_path).parent / f"{model_name}{suffix}.png"
-        if not overwrite and thumbnail_path.exists():
-            print(f"Thumbnail already exists for {model_name}, skipping...")
-            continue
-
         try:
             print(f"Generating '{set_name}' thumbnail for model: {model_name}")
-            generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings)
+            generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings, overwrite)
             print(f"Processed {i+1}/{total_to_process} thumbnails")
         except Exception as e:
             print(f"Error generating thumbnail for {model_name}: {e}")
@@ -258,7 +265,8 @@ def generate_thumbnails(set_name, set_data, suffix, overwrite=False, start_index
     return f"Finished processing {total_to_process} thumbnails"
 
 # Generate thumbnails for specific model (called from generate_thumbnails)
-def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings):
+def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings, overwrite=False):
+
     # Initialize processed to None
     processed = None
     try:
@@ -287,17 +295,22 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         )
 
         # Find the full path of the model
-        model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem or Path(path).name.startswith(model_name)),
-                            None)
+        model_name_without_ext = model_name.rsplit('.', 1)[0]
+        model_full_path = next((path for path in relevant_model_paths if Path(path).name == model_name), None)
+
         if model_full_path is None:
-            print(f"Debug: Model name: {model_name}")
-            print(f"Debug: Relevant model paths: {relevant_model_paths}")
             raise FileNotFoundError(f"Model file for {model_name} not found or is blocklisted.")
-        
         # Use the model's directory to save the thumbnail
         model_directory = Path(ckpt_dir) / Path(model_full_path).parent
-        output_filename = f"{Path(model_name).stem}{suffix}"
+        # Use the full model name (without extension) for the output filename
+        output_filename = f"{model_name_without_ext}{suffix}"
         output_path = model_directory / output_filename
+
+        # Check if thumbnail already exists and skip if not overwriting
+        if not overwrite and (model_directory / f"{output_filename}.png").exists():
+            print(f"Thumbnail already exists for {model_name}, skipping...")
+            return
+        
         # disable saving of grid
         p.do_not_save_grid = True
         # disable saving image to subdirectories
@@ -310,9 +323,9 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         # Perform necessary pre-processing or initialization
         p.init(["Empty Prompt"],[-1],[-1])
         # Print model info
-        print (f"\n****************************************************************************\nModel:{model_name}\nRelative Path:{model_path}\nFull Path:{full_model_path}.\n****************************************************************************\n")
+        #print (f"\n****************************************************************************\nModel:{model_name}\nRelative Path:{model_path}\nFull Path:{full_model_path}.\n****************************************************************************\n")
         # Print set data
-        print(f"Retrieved set data for '{current_set_name}': {set_data}\n")
+        #print(f"Retrieved set data for '{current_set_name}': {set_data}\n")
        
         # Process the image
         with closing(p):
@@ -347,7 +360,7 @@ def update_gallery(set_name):
     print(f"Thumbnailizer: Switched to set: {set_name} ({suffix})")
     current_suffix = suffix
     thumbnails = get_relevant_thumbnails(suffix)
-    print(f"Thumbnailizer: Found {len(thumbnails)} relevant thumbnails")
+    
     return [(path, name) for path, name in thumbnails]
 
 # Functionality to generate thumbnails for all sets
@@ -358,8 +371,8 @@ def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=Fals
     model_paths = relevant_model_paths[start_index:end_index] if end_index != -1 else relevant_model_paths[start_index:]
     
     for model_path in model_paths:
-        model_name = Path(model_path).stem
-        print(f"Processing model: {model_name}")
+        # model_name = Path(model_path).name.rsplit('.', 1)[0]  # Get full name without extension
+        model_name = Path(model_path).name
         
         for set_item in all_sets:
             set_name = set_item["displayName"]
@@ -370,7 +383,6 @@ def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=Fals
             
             print(f"Generating thumbnail for set: {set_name} with suffix: {suffix}")
             generate_thumbnail_for_model_and_set(model_name, model_path, set_item, suffix, overwrite, use_override_settings)
-    
     # Update the gallery with all thumbnails
     all_thumbnails = []
     for set_item in all_sets:
@@ -389,8 +401,12 @@ def generate_thumbnail_for_model_and_set(model_name, model_path, set_item, suffi
         override_settings = load_override_settings(override_settings_file)
         generation_set_data = apply_override_settings(generation_set_data, override_settings)
     
-    thumbnail_file_name = f"{Path(model_name).stem}{suffix}.png"
+    # Use the full model name without extension for the thumbnail
+    model_name_without_ext = model_name.rsplit('.', 1)[0]
+    thumbnail_file_name = f"{model_name_without_ext}{suffix}.png"
     thumbnail_path = Path(ckpt_dir) / Path(model_path).parent / thumbnail_file_name
+    
+    print(f"Checking if thumbnail exists: {thumbnail_path}")
     
     if not overwrite and thumbnail_path.exists():
         print(f"Thumbnail already exists for {model_name} in set {set_item['displayName']}, skipping...")
@@ -398,7 +414,21 @@ def generate_thumbnail_for_model_and_set(model_name, model_path, set_item, suffi
     
     try:
         print(f"Generating thumbnail for model: {model_name} in set: {set_item['displayName']}")
-        generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, os.path.join(ckpt_dir, model_path), use_override_settings)
+        
+        # Debug prints for model paths and names
+        print(f"Model name with extension: {model_name}")
+        print(f"Model path: {model_path}")
+        
+        # Find the full path of the model by matching the full model name including the extension
+        model_full_path = next((path for path in relevant_model_paths if Path(path).name == model_name), None)
+        
+
+        print(f"Found model full path: {model_full_path}")
+        
+        if model_full_path is None:
+            raise FileNotFoundError(f"Model file for {model_name} not found or is blocklisted.")
+        
+        generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, os.path.join(ckpt_dir, model_full_path), use_override_settings)
     except Exception as e:
         print(f"Error generating thumbnail for {model_name} in set {set_item['displayName']}: {e}")
 
@@ -444,7 +474,7 @@ def on_ui_tabs():
 
             # Generate button
             with gr.Row():
-                generate_button = gr.Button("Generate Thumbnails for Current Set")
+                generate_button = gr.Button("Generate Thumbnails")
                 generate_all_button = gr.Button("Generate Thumbnails for All Sets")
             with gr.Row():
                 generating_message = gr.Markdown()
@@ -466,7 +496,6 @@ def on_ui_tabs():
                 thread = threading.Thread(target=generate_thumbnails, args=(set_name, current_set_data, current_suffix, overwrite, start_index, end_index, use_override_settings))
                 thread.start()
                 return f"Generating thumbnails for set: {set_name}. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
-
 
 
             def display_generating_all_message(overwrite, start_index, end_index, use_override_settings):
