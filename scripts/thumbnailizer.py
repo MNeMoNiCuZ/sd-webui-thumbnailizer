@@ -143,7 +143,7 @@ def initialize_model_data():
     for m in model_files:
         if Path(m).suffix in {".ckpt", ".safetensors"}:
             rel_path = os.path.relpath(m, model_path.as_posix())
-            all_model_names.append(Path(rel_path).name)
+            all_model_names.append(Path(m).name)  # Use full name instead of stem
             all_model_paths.append(rel_path)
 
             # Normalize the path for comparison
@@ -159,8 +159,11 @@ def initialize_model_data():
                     break
 
             if rel_path not in blocklist and not is_blocked:
-                relevant_model_names.append(Path(rel_path).name)
+                relevant_model_names.append(Path(m).name)  # Use full name instead of stem
                 relevant_model_paths.append(rel_path)
+
+    print(f"Debug: Total models found: {len(all_model_names)}")
+    print(f"Debug: Relevant models: {len(relevant_model_names)}")
 
 
 # Function to get the data of a specific set
@@ -196,14 +199,15 @@ def get_relevant_thumbnails(suffix=""):
     return thumbnails
 
 # Start thumbnail generation
-def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1, use_override_settings=False):
+def generate_thumbnails(set_name, set_data, suffix, overwrite=False, start_index=0, end_index=-1, use_override_settings=False):
     global gallery
     
-    filtered_model_names = []
-    filtered_model_paths = []
-    generation_set_data = set_data.copy()  # Create a copy to avoid modifying the original
-    print(f"--------------------------------------------------------\nThumbnailizer generation initializing for set: {current_set_name}")
-    print(f"Filtering models using blocklist_user.json\n")
+    print(f"--------------------------------------------------------")
+    print(f"Thumbnailizer generation initializing for set: {set_name}")
+    print(f"Filtering models using blocklist_user.json")
+    print(f"Current suffix: {suffix}")
+    
+    generation_set_data = set_data.copy()
     
     if use_override_settings:
         override_settings = load_override_settings(override_settings_file)
@@ -215,53 +219,43 @@ def generate_thumbnails(suffix, overwrite=False, start_index=0, end_index=-1, us
     else:
         print("Not using settings override")
 
-    for model_name in relevant_model_names:
-        model_file_path = next((path for path in relevant_model_paths if Path(path).name == model_name), None)
-        if model_file_path is None:
-            print(f"Model file for {model_name} not found or blocklisted, skipping...")
-            continue
+    print(f"Generation set data: {generation_set_data}")
 
-        thumbnail_file_name = Path(model_name).stem + suffix + '.png'
-        thumbnail_path = Path(ckpt_dir) / Path(model_file_path).parent / thumbnail_file_name
-
-        if not overwrite and thumbnail_path.exists():
-            continue
-
-        filtered_model_names.append(model_name)
-        filtered_model_paths.append(model_file_path)
-
-    start_index = max(0, min(int(start_index), len(filtered_model_names) - 1))
-    end_index = min(int(end_index), len(filtered_model_names) - 1) if int(end_index) != -1 else len(filtered_model_names) - 1
-    total_to_process = (end_index - start_index) + 1
+    model_paths = relevant_model_paths[start_index:end_index] if end_index != -1 else relevant_model_paths[start_index:]
+    total_to_process = len(model_paths)
 
     if total_to_process == 0:
         print("No thumbnails to generate.")
         return "No thumbnails to generate."
 
-    print(f"Generating {total_to_process} thumbnails for set: {current_set_name}")
+    print(f"Generating {total_to_process} thumbnails for set: {set_name}")
 
-    processed_count = 0
-    for i in range(start_index, end_index + 1):
-        model_name = filtered_model_names[i]
-        full_model_path = os.path.join(ckpt_dir, filtered_model_paths[i])
+    for i, model_path in enumerate(model_paths):
+        model_name = Path(model_path).stem
+        full_model_path = os.path.join(ckpt_dir, model_path)
+
+        thumbnail_path = Path(ckpt_dir) / Path(model_path).parent / f"{model_name}{suffix}.png"
+        if not overwrite and thumbnail_path.exists():
+            print(f"Thumbnail already exists for {model_name}, skipping...")
+            continue
+
         try:
-            print(f"Generating '{current_set_name}' thumbnail for model: {model_name}\n")
-            generate_thumbnail_for_model(generation_set_data, model_name, suffix, filtered_model_paths[i], full_model_path, use_override_settings)
-            processed_count += 1
-            print(f"Processed {processed_count}/{total_to_process} thumbnails")
+            print(f"Generating '{set_name}' thumbnail for model: {model_name}")
+            generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings)
+            print(f"Processed {i+1}/{total_to_process} thumbnails")
         except Exception as e:
             print(f"Error generating thumbnail for {model_name}: {e}")
     
-    print(f"\nThumbnailizer - Finished processing {processed_count} thumbnails")
+    print(f"\nThumbnailizer - Finished processing {total_to_process} thumbnails")
     
     try:
         load_json_data()
-        gallery_data = update_gallery(current_set_name)
+        gallery_data = update_gallery(set_name)
         gallery.update(value=gallery_data)
     except Exception as e:
         print(f"Error updating gallery: {e}")
     
-    return f"Finished processing {processed_count} thumbnails"
+    return f"Finished processing {total_to_process} thumbnails"
 
 # Generate thumbnails for specific model (called from generate_thumbnails)
 def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, full_model_path, use_override_settings):
@@ -293,10 +287,13 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         )
 
         # Find the full path of the model
-        model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem),
-                               None)
+        model_full_path = next((path for path in relevant_model_paths if Path(path).stem == Path(model_name).stem or Path(path).name.startswith(model_name)),
+                            None)
         if model_full_path is None:
+            print(f"Debug: Model name: {model_name}")
+            print(f"Debug: Relevant model paths: {relevant_model_paths}")
             raise FileNotFoundError(f"Model file for {model_name} not found or is blocklisted.")
+        
         # Use the model's directory to save the thumbnail
         model_directory = Path(ckpt_dir) / Path(model_full_path).parent
         output_filename = f"{Path(model_name).stem}{suffix}"
@@ -313,9 +310,9 @@ def generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_
         # Perform necessary pre-processing or initialization
         p.init(["Empty Prompt"],[-1],[-1])
         # Print model info
-        #print (f"\n****************************************************************************\nModel:{model_name}\nRelative Path:{model_path}\nFull Path:{full_model_path}.\n****************************************************************************\n")
+        print (f"\n****************************************************************************\nModel:{model_name}\nRelative Path:{model_path}\nFull Path:{full_model_path}.\n****************************************************************************\n")
         # Print set data
-        #print(f"Retrieved set data for '{current_set_name}': {set_data}\n")
+        print(f"Retrieved set data for '{current_set_name}': {set_data}\n")
        
         # Process the image
         with closing(p):
@@ -356,22 +353,59 @@ def update_gallery(set_name):
 # Functionality to generate thumbnails for all sets
 def generate_thumbnails_for_all_sets(start_index=0, end_index=-1, overwrite=False, use_override_settings=False):
     global data, current_set_name, set_data
+    
+    all_sets = data["sets"]
+    model_paths = relevant_model_paths[start_index:end_index] if end_index != -1 else relevant_model_paths[start_index:]
+    
+    for model_path in model_paths:
+        model_name = Path(model_path).stem
+        print(f"Processing model: {model_name}")
+        
+        for set_item in all_sets:
+            set_name = set_item["displayName"]
+            suffix = f".{set_item['suffix']}" if set_item['suffix'] else ''
+            
+            current_set_name = set_name
+            set_data = set_item
+            
+            print(f"Generating thumbnail for set: {set_name} with suffix: {suffix}")
+            generate_thumbnail_for_model_and_set(model_name, model_path, set_item, suffix, overwrite, use_override_settings)
+    
+    # Update the gallery with all thumbnails
     all_thumbnails = []
-    for set_item in data["sets"]:
-        set_name = set_item["displayName"]
-        current_set_name = set_name
-        set_data = set_item
-        suffix = set_item.get('suffix', '')
-        if suffix:
-            suffix = '.' + suffix
-        print(f"Generating thumbnails for set: {set_name} with suffix: {suffix}")
-        generate_thumbnails(suffix, overwrite, start_index, end_index, use_override_settings)
+    for set_item in all_sets:
+        suffix = f".{set_item['suffix']}" if set_item['suffix'] else ''
         all_thumbnails.extend(get_relevant_thumbnails(suffix))
+    
     gallery.update(all_thumbnails)
+    
+    print("Finished generating thumbnails for all sets.")
+    return "Finished generating thumbnails for all sets."
+
+def generate_thumbnail_for_model_and_set(model_name, model_path, set_item, suffix, overwrite, use_override_settings):
+    generation_set_data = set_item.copy()
+    
+    if use_override_settings:
+        override_settings = load_override_settings(override_settings_file)
+        generation_set_data = apply_override_settings(generation_set_data, override_settings)
+    
+    thumbnail_file_name = f"{Path(model_name).stem}{suffix}.png"
+    thumbnail_path = Path(ckpt_dir) / Path(model_path).parent / thumbnail_file_name
+    
+    if not overwrite and thumbnail_path.exists():
+        print(f"Thumbnail already exists for {model_name} in set {set_item['displayName']}, skipping...")
+        return
+    
+    try:
+        print(f"Generating thumbnail for model: {model_name} in set: {set_item['displayName']}")
+        generate_thumbnail_for_model(generation_set_data, model_name, suffix, model_path, os.path.join(ckpt_dir, model_path), use_override_settings)
+    except Exception as e:
+        print(f"Error generating thumbnail for {model_name} in set {set_item['displayName']}: {e}")
+
     
 # Thumbnailizer UI
 def on_ui_tabs():
-    global current_suffix, gallery, blocked_paths
+    global current_suffix, gallery, blocked_paths, current_set_name, set_data
     current_suffix = ''    # Initialize with empty string
 
     # Load choices from JSON
@@ -410,7 +444,7 @@ def on_ui_tabs():
 
             # Generate button
             with gr.Row():
-                generate_button = gr.Button("Generate Thumbnails")
+                generate_button = gr.Button("Generate Thumbnails for Current Set")
                 generate_all_button = gr.Button("Generate Thumbnails for All Sets")
             with gr.Row():
                 generating_message = gr.Markdown()
@@ -421,17 +455,19 @@ def on_ui_tabs():
             # Add an invisible button for triggering thumbnail generation
             generate_thumbnails_button = gr.Button(visible=False)
 
-            def display_generating_message(overwrite, start_index, end_index, use_override_settings):
+            def display_generating_message(set_name, overwrite, start_index, end_index, use_override_settings):
                 start_index = int(start_index)
                 end_index = int(end_index)
                 
-                # Ensure we're using the current set
-                current_set_name = set_dropdown.value
-                initialize(current_set_name)
+                # Get the current set data
+                current_set_data = get_set_data(set_name)
+                current_suffix = f".{current_set_data['suffix']}" if current_set_data['suffix'] else ''
                 
-                thread = threading.Thread(target=generate_thumbnails, args=(current_suffix, overwrite, start_index, end_index, use_override_settings))
+                thread = threading.Thread(target=generate_thumbnails, args=(set_name, current_set_data, current_suffix, overwrite, start_index, end_index, use_override_settings))
                 thread.start()
-                return f"Generating thumbnails for set: {current_set_name}. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
+                return f"Generating thumbnails for set: {set_name}. See console for progress. Once generated, restart A1111 or switch set back and forth to reload.", True
+
+
 
             def display_generating_all_message(overwrite, start_index, end_index, use_override_settings):
                 start_index = int(start_index)
@@ -450,7 +486,7 @@ def on_ui_tabs():
             # Generate button action
             generate_button.click(
                 fn=display_generating_message,
-                inputs=[overwrite_checkbox, start_index_input, last_index_input, use_override_settings_checkbox],
+                inputs=[set_dropdown, overwrite_checkbox, start_index_input, last_index_input, use_override_settings_checkbox],
                 outputs=[generating_message, generation_state]
             )
 
@@ -556,15 +592,16 @@ def on_ui_tabs():
         ######################## MISC ########################
         # Handle set changes
         def on_set_change(set_name):
-            global current_set_name, set_data
+            global current_set_name, set_data, current_suffix
             current_set_name = set_name
             set_data = get_set_data(current_set_name)
+            # Update current_suffix based on the new set
+            current_suffix = f".{set_data['suffix']}" if set_data['suffix'] else ''
             # Re-initialize
             initialize(current_set_name)
 
             # Update the gallery
             gallery_data = update_gallery(set_name)
-            gallery.update(gallery_data)
             return gallery_data
 
         # Event handling for the Set List dropdown change
