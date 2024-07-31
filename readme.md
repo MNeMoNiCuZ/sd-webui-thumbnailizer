@@ -82,10 +82,11 @@ Make sure you disable the `Add number to filename when saving` option in `Settin
 
 
 # Changelog
-* v0.29 - Initial release
-* v0.30 - Include metadata in generated thumbnails
-* v0.31 - Generate a sets_user.json
-* v0.32 - Generate a blocklist_user.json
-* v0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#blocked-folders--paths).
-* v0.34 - Added [Override Settings](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#use-override-settings).
-* v0.35 - Optimized multi-set generation, fixed bugs with the wrong set being generated.
+* 0.29 - Initial release
+* 0.30 - Include metadata in generated thumbnails
+* 0.31 - Generate a sets_user.json
+* 0.32 - Generate a blocklist_user.json
+* 0.33 - Added [Blocked Paths](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#blocked-folders--paths).
+* 0.34 - Added [Override Settings](https://github.com/MNeMoNiCuZ/sd-webui-thumbnailizer/blob/main/readme.md#use-override-settings).
+* 0.35 - Optimized multi-set generation, fixed bugs with the wrong set being generated.
+* 0.36 - Fixed bugs with . or _ in names and Overwrite setting was ignored for set generation.
